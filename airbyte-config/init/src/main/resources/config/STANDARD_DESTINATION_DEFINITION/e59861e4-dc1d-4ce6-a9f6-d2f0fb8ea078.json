@@ -1,0 +1,7 @@
+{
+  "destinationDefinitionId": "e59861e4-dc1d-4ce6-a9f6-d2f0fb8ea078",
+  "name": "Scalyr",
+  "dockerRepository": "airbyte/destination-scalyr",
+  "dockerImageTag": "0.1.0",
+  "documentationUrl": "https://docs.airbyte.io/integrations/destinations/scalyr"
+}
