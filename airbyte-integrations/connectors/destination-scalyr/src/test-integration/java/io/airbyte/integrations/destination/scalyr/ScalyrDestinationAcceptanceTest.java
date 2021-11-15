@@ -5,9 +5,19 @@
 package io.airbyte.integrations.destination.scalyr;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.scalyr.api.query.QueryService;
+import com.scalyr.api.query.QueryService.PageMode;
+import io.airbyte.commons.io.IOs;
+import io.airbyte.commons.json.Jsons;
 import io.airbyte.integrations.standardtest.destination.DestinationAcceptanceTest;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,7 +25,11 @@ public class ScalyrDestinationAcceptanceTest extends DestinationAcceptanceTest {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ScalyrDestinationAcceptanceTest.class);
 
+  private final ObjectMapper mapper = new ObjectMapper();
+
   private JsonNode configJson;
+  private ScalyrDestinationConfig config;
+  private QueryService querySvc;
 
   @Override
   protected String getImageName() {
@@ -24,39 +38,52 @@ public class ScalyrDestinationAcceptanceTest extends DestinationAcceptanceTest {
 
   @Override
   protected JsonNode getConfig() {
-    // TODO: Generate the configuration JSON file to be used for running the destination during the test
-    // configJson can either be static and read from secrets/config.json directly
-    // or created in the setup method
     return configJson;
   }
 
   @Override
   protected JsonNode getFailCheckConfig() {
-    // TODO return an invalid config which, when used to run the connector's check connection operation,
-    // should result in a failed connection check
-    return null;
+    final var badConfig = Jsons.clone(configJson);
+    ((ObjectNode) badConfig).put("scalyr_endpoint", "https://i-am-not-scalyr.com/");
+    return badConfig;
   }
 
   @Override
-  protected List<JsonNode> retrieveRecords(TestDestinationEnv testEnv,
-                                           String streamName,
-                                           String namespace,
-                                           JsonNode streamSchema)
+  protected List<JsonNode> retrieveRecords(final TestDestinationEnv testEnv,
+                                           final String streamName,
+                                           final String namespace,
+                                           final JsonNode streamSchema)
       throws IOException {
-    // TODO Implement this method to retrieve records which written to the destination by the connector.
-    // Records returned from this method will be compared against records provided to the connector
-    // to verify they were written correctly
-    return null;
+    final String filter = String.format("serverHost = 'airbyte' nonce = 'nonce_%d'", ScalyrConsumer.SCALYR_OVERRIDING_EVENT_TS);
+    LOGGER.info("Querying with filter \"" + filter + "\"");
+
+    QueryService.LogQueryResult result;
+    final Instant startTime = Instant.now();
+    do { // TODO don't want Airbyte heavy-hitting Scalyr either
+      result = querySvc.logQuery(filter, "10 minutes", "0 minutes", 200, PageMode.head, null, null);
+    } while (result.matches.size() < 5
+        && Duration.between(startTime, Instant.now()).toSeconds() < 10);
+
+    return result.matches.stream()
+        .map(match -> {
+          final ObjectNode node = mapper.createObjectNode();
+          match.fields.getEntries().forEach(e -> node.set(
+              e.getKey(),
+              mapper.convertValue(e.getValue(), JsonNode.class)));
+          return node;
+        })
+        .collect(Collectors.toList());
   }
 
   @Override
-  protected void setup(TestDestinationEnv testEnv) {
-    // TODO Implement this method to run any setup actions needed before every test case
+  protected void setup(final TestDestinationEnv testEnv) {
+    this.configJson = Jsons.deserialize(IOs.readFile(Path.of("/Users/shia/code/airbyte/secrets/config.json")));
+    this.config     = ScalyrDestinationConfig.fromJson(this.configJson);
+    this.querySvc   = new QueryService(this.config.getLogReadApiKey());
   }
 
   @Override
-  protected void tearDown(TestDestinationEnv testEnv) {
-    // TODO Implement this method to run any cleanup actions needed after every test case
+  protected void tearDown(final TestDestinationEnv testEnv) {
   }
 
 }

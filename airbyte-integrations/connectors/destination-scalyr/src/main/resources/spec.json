@@ -1,21 +1,41 @@
 {
   "documentationUrl": "https://docs.airbyte.io/integrations/destinations/scalyr",
-  "supportsIncremental": TODO,
-  "supported_destination_sync_modes": ["TODO"],
+  "supportsIncremental": true,
+  "supported_destination_sync_modes": ["append"],
   "connectionSpecification": {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "title": "TODO",
+    "title": "Scalyr Destination Spec",
     "type": "object",
     "required": [
-      "TODO"
+      "scalyr_log_write_api_key"
     ],
-    "additionalProperties": false,
+    "additionalProperties": true,
     "properties": {
-      "TODO_sample_field": {
-        "title": "Sample Field",
+      "scalyr_log_write_api_key": {
+        "title": "Scalyr Log Access Key - Write",
         "type": "string",
-        "description": "",
-        "examples": [""]
+        "description": "TODO"
+      },
+      "scalyr_endpoint": {
+        "title": "Scalyr Endpoint",
+        "type": "string",
+        "description": "TODO",
+        "examples": ["https://app.scalyr.com", "https://app.eu.scalyr.com"]
+      },
+      "scalyr_log_read_api_key": {
+        "title": "Scalyr Log Access Key - Read (Test Only)",
+        "type": "string",
+        "description": "Only needed by ScalyrDestinationAcceptanceTest#retrieveRecords"
+      },
+      "scalyr_event_timestamp_use_now": {
+        "title": "Scalyr Event Timestamp (Test Only)",
+        "type": "boolean",
+        "description": "If true, will use System#currentTimeMillis as even upload ts"
+      },
+      "scalyr_memory_limit_bytes": {
+        "title": "TODO",
+        "type": "integer",
+        "description": "TODO"
       }
     }
   }
